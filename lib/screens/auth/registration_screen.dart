@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:myapp/services/auth_service.dart'; // Ensure correct import
-
-import 'package:myapp/models/user_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
 
 class RegistrationScreen extends StatefulWidget {
@@ -14,14 +12,12 @@ class RegistrationScreen extends StatefulWidget {
 class _RegistrationScreenState extends State<RegistrationScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final AuthService _authService = AuthService();
   String errorMessage = '';
 
   void _register() async {
-    final email = _emailController.text;
-    final password = _passwordController.text;
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
 
-    // Basic validation (will add more robust validation later)
     if (email.isEmpty || password.isEmpty) {
       setState(() {
         errorMessage = "Please enter both email and password.";
@@ -29,35 +25,17 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       return;
     }
 
-    // Clear error message if validation passes initially
-    setState(() {
-      errorMessage = '';
-    });
+    SharedPreferences prefs = await SharedPreferences.getInstance();
 
-    try {
-      final UserModel? user = await _authService.signUpWithEmailPassword(
-        email,
-        password,
-      );
-      if (user != null) {
-        // Registration successful, navigate to login
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => LoginScreen()),
-        ); // Correct navigation
-      } else {
-        // This case might happen if AuthService returns null without throwing,
-        // though with refined error handling, exceptions are more likely.
-        setState(() {
-          errorMessage = 'Registration failed. Please try again.';
-        });
-      }
-    } catch (e) {
-      // Registration failed due to an exception (e.g., FirebaseAuthException)
-      setState(() {
-        errorMessage = e.toString();
-      }); // Display the exception message
-    }
+    // Save email & password locally
+    await prefs.setString("saved_email", email);
+    await prefs.setString("saved_password", password);
+
+    // Navigate to Login
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => LoginScreen()),
+    );
   }
 
   @override
@@ -68,7 +46,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-
           children: [
             TextField(
               controller: _emailController,
@@ -83,11 +60,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             ),
             SizedBox(height: 20),
             if (errorMessage.isNotEmpty)
-              Text(
-                errorMessage,
-                style: TextStyle(color: Colors.red),
-                textAlign: TextAlign.center,
-              ),
+              Text(errorMessage, style: TextStyle(color: Colors.red)),
             SizedBox(height: 20),
             ElevatedButton(onPressed: _register, child: Text('Register')),
           ],

@@ -1,88 +1,48 @@
-// ignore_for_file: use_build_context_synchronously, duplicate_ignore
-
 import 'package:flutter/material.dart';
-import 'package:myapp/services/auth_service.dart';
 import 'package:myapp/screens/dashboard/dashboard_screen.dart';
-import 'package:myapp/screens/products/product_list_screen.dart';
-// ignore: unused_import
-import 'package:myapp/models/user_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+// your main screen
+import 'registration_screen.dart';
+//import '../dashboard_screen.dart'; // Add this import for DashboardScreen
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  // ignore: library_private_types_in_public_api
   _LoginScreenState createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final AuthService _authService = AuthService();
   String errorMessage = '';
 
-  _login() async {
-    final email = _emailController.text;
-    final password = _passwordController.text;
+  void _login() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
 
-    if (email.isEmpty || password.isEmpty) {
+    String? savedEmail = prefs.getString("saved_email");
+    String? savedPass = prefs.getString("saved_password");
+
+    final enteredEmail = _emailController.text.trim();
+    final enteredPassword = _passwordController.text.trim();
+
+    if (enteredEmail.isEmpty || enteredPassword.isEmpty) {
       setState(() {
         errorMessage = "Please enter both email and password.";
       });
       return;
     }
 
-    try {
-      final user = await _authService.signInWithEmailPassword(email, password);
-
-      if (user != null) {
-        if (user.role == 'admin') {
-          Navigator.pushReplacement(
-            // ignore: use_build_context_synchronously
-            context,
-            MaterialPageRoute(builder: (context) => ProductListScreen()),
-          );
-        } else if (user.role == 'staff') {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => DashboardScreen()),
-          );
-        }
-      } else {
-        // This case might be reached if the service returns null without throwing an exception
-        // depending on the AuthService implementation.
-        setState(() {
-          errorMessage = "Login failed. Please try again.";
-        });
-      }
-    } catch (e) {
+    if (enteredEmail == savedEmail && enteredPassword == savedPass) {
+      // Login success
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => DashboardScreen()),
+      );
+    } else {
       setState(() {
-        errorMessage =
-            e.toString(); // Display the error message from AuthService
+        errorMessage = "Invalid email or password.";
       });
-    }
-  }
-
-  _resetPassword() async {
-    final email = _emailController.text.trim();
-    if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please enter your email to reset password.')),
-      );
-      return;
-    }
-
-    try {
-      await _authService.sendPasswordResetEmail(email);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Password reset email sent to $email')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to send password reset email: ${e.toString()}'),
-        ), // Display the error message from AuthService
-      );
     }
   }
 
@@ -95,26 +55,31 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Your existing TextFields and other widgets
             if (errorMessage.isNotEmpty)
               Text(errorMessage, style: TextStyle(color: Colors.red)),
             SizedBox(height: 20),
-            ElevatedButton(onPressed: _login, child: Text('Login')),
-            TextButton(
-              onPressed: _resetPassword,
-              child: Text('Forgot Password?'),
-            ),
-            // Add the TextField widgets here as they seem to be missing from the provided code snippet
+
             TextField(
               controller: _emailController,
               decoration: InputDecoration(labelText: 'Email'),
             ),
             TextField(
               controller: _passwordController,
-              obscureText: true,
               decoration: InputDecoration(labelText: 'Password'),
+              obscureText: true,
             ),
             SizedBox(height: 20),
+
+            ElevatedButton(onPressed: _login, child: Text('Login')),
+            TextButton(
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => RegistrationScreen()),
+                );
+              },
+              child: Text("Create Account"),
+            ),
           ],
         ),
       ),
