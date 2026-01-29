@@ -27,7 +27,7 @@ class InvoiceService {
                   ),
                 ),
                 pw.SizedBox(height: 20),
-                pw.Table.fromTextArray(
+                pw.TableHelper.fromTextArray(
                   headers: ['Product', 'Qty', 'Price', 'Subtotal'],
                   data:
                       cartItems.map((item) {

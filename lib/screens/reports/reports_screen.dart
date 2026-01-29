@@ -97,9 +97,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final file = File(path);
     await file.writeAsString(csv);
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text("CSV Report exported to: $path")));
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("CSV Report exported to: $path")));
+    }
   }
 
   Future<void> _selectDateRange(BuildContext context) async {
@@ -110,6 +112,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       lastDate: DateTime.now(),
     );
     if (pickedStartDate != null && pickedStartDate != startDate) {
+      if (!mounted) return;
       final pickedEndDate = await showDatePicker(
         context: context,
         initialDate: endDate ?? DateTime.now(),

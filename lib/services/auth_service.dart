@@ -3,101 +3,96 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:myapp/models/user_model.dart';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  FirebaseAuth get _auth => FirebaseAuth.instance;
+  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
 
   // Sign-in with email and password
-  Future<UserModel?> signInWithEmailPassword(
+  Future<UserModel?> signInWithEmailAndPassword(
     String email,
     String password,
   ) async {
     try {
-      // Sign in the user with Firebase Auth
-      final UserCredential userCredential = await _auth.signInWithEmailPassword(
-        email: email,
-        password: password,
-      );
+      final UserCredential userCredential = await _auth
+          .signInWithEmailAndPassword(email: email, password: password);
 
-      // Get the user's UID
       final uid = userCredential.user!.uid;
-
-      // Fetch user data from Firestore
       final DocumentSnapshot userDoc =
           await _firestore.collection('users').doc(uid).get();
+
+      if (!userDoc.exists) {
+        throw Exception("User data not found in database.");
+      }
+
       final userData = userDoc.data() as Map<String, dynamic>;
+      // Ensure uid is included in the map if it's not stored in the document fields
+      userData['uid'] = uid;
 
       return UserModel.fromMap(userData);
-    } on FirebaseAuthException catch (e) {
-      print("Firebase Auth Error signing in: ${e.code}");
-      // Rethrow FirebaseAuthException to be handled in the UI
-      rethrow;
     } catch (e) {
-      print("Error signing in: $e");
-      // Rethrow other exceptions
       rethrow;
     }
   }
 
   // Sign-up with email and password
-  Future<UserModel?> signUpWithEmailPassword(
+  Future<UserModel?> signUpWithEmailAndPassword(
     String email,
     String password,
+    String role,
   ) async {
+    UserCredential? userCredential;
     try {
-      // Create a new user with Firebase Auth
-      final UserCredential userCredential = await _auth
-          .createUserWithEmailAndPassword(email: email, password: password);
+      // 1. Create Auth User
+      userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
 
-      // Get the user's UID
       final uid = userCredential.user!.uid;
 
-      // Store user data in Firestore
-      await _firestore.collection('users').doc(uid).set({
+      // 2. Prepare Data
+      Map<String, dynamic> userData = {
+        'uid': uid, // Redundant but good for exporting
         'email': email,
-        'role': 'staff', // Assign a default role
-      });
+        'role': role,
+        'createdAt': FieldValue.serverTimestamp(),
+      };
 
-      // Fetch the created user document and return a UserModel
-      final DocumentSnapshot userDoc =
-          await _firestore.collection('users').doc(uid).get();
-      final userData = userDoc.data() as Map<String, dynamic>;
+      // 3. Save to Firestore
+      // Using set() with merge:true is safer generally, though new doc doesn't strictly need it.
+      await _firestore.collection('users').doc(uid).set(userData);
 
       return UserModel.fromMap(userData);
-    } on FirebaseAuthException catch (e) {
-      print("Firebase Auth Error signing up: ${e.code}");
-      // Rethrow FirebaseAuthException to be handled in the UI
-      rethrow;
     } catch (e) {
-      print("Error signing up: $e");
-      // Rethrow other exceptions
-      rethrow;
-    }
-  }
-
-  // Send password reset email
-  Future<void> sendPasswordResetEmail(String email) async {
-    try {
-      await _auth.sendPasswordResetEmail(email: email);
-    } catch (e) {
-      if (e is FirebaseAuthException) {
-        print("Firebase Auth Error sending password reset email: ${e.code}");
-        rethrow; // Rethrow FirebaseAuthException
+      // If Firestore save fails, we should ideally delete the Auth user
+      // so the user can try registering again.
+      if (userCredential?.user != null) {
+        try {
+          await userCredential!.user!.delete();
+        } catch (_) {
+          // Ignore deletion error
+        }
       }
-      print("Error sending password reset email: $e");
+      rethrow;
     }
   }
 
-  // Check if the user is signed in
-  Future<User?> getCurrentUser() async {
-    return _auth.currentUser;
+  Future<void> sendPasswordResetEmail(String email) async {
+    await _auth.sendPasswordResetEmail(email: email);
   }
 
-  // Sign out the user
+  Stream<User?> get authStateChanges => _auth.authStateChanges();
+
+  Future<UserModel?> getUserData(String uid) async {
+    final doc = await _firestore.collection('users').doc(uid).get();
+    if (doc.exists) {
+      final data = doc.data() as Map<String, dynamic>;
+      data['uid'] = uid;
+      return UserModel.fromMap(data);
+    }
+    return null;
+  }
+
   Future<void> signOut() async {
     await _auth.signOut();
   }
-}
-
-extension on FirebaseAuth {
-  signInWithEmailPassword({required String email, required String password}) {}
 }

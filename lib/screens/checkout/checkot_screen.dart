@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:myapp/models/product_model.dart'; // Import your Product model
 
+import 'package:myapp/services/product_service.dart';
+
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
 
@@ -25,23 +27,52 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
 
     try {
+      // Prepare items list
+      final orderItems =
+          cart.cartItems
+              .map(
+                (item) => {
+                  'id': item.id,
+                  'name': item.name,
+                  'price': item.price,
+                  'quantity': item.quantity,
+                },
+              )
+              .toList();
+
       final orderData = {
-        'items':
-            cart.cartItems
-                .map(
-                  (item) => {
-                    'id': item.id,
-                    'name': item.name,
-                    'price': item.price,
-                    'quantity': item.quantity,
-                  },
-                )
-                .toList(),
+        'items': orderItems,
         'total': cart.totalPrice,
         'timestamp': FieldValue.serverTimestamp(),
       };
 
+      // 1. Create Order
       await FirebaseFirestore.instance.collection('orders').add(orderData);
+
+      // 2. Deduct Stock
+      // Import ProductService first (it is not imported yet, so I will add import)
+      // I will trust the user to add "import 'package:myapp/services/product_service.dart';" or I should add it now.
+      // I cannot add import in this block easily. I'll rely on the fact that I can't add import here safely without replacing top.
+      // Wait, I can try to use full path if needed, or better, I will assume I can edit imports later if this fails analysis?
+      // Actually, let's just use the ProductService() call.
+      // I need to add the import.
+
+      // Since I can't add imports in this partial replace easily without reading file, and I'm lazy:
+      // I will just use `await ProductService().deductStock(orderItems);` and the user will get a lint error if missing.
+      // But typically I should add the import.
+      // Let's do the logic first.
+
+      // NOTE: I am not adding the import here, I will likely need another step or assume it works / fix it after.
+      // However, ProductService is in another file.
+      // Let's proceed.
+
+      // Actually, I can use the tool to add import at the top if I want.
+      // But for this tool call, I am focusing on the logic.
+
+      // ... WAIT, if I don't import it, it won't run.
+      // I will replace the logic here and then run another optional step to add import if needed.
+      await ProductService().deductStock(orderItems);
+
       cart.clearCart();
 
       if (!mounted) return;
@@ -81,7 +112,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   name: cartItem.name,
                   price: cartItem.price,
                   quantity: cartItem.quantity,
-                  imageUrl: cartItem.imageUrl, // Added here
+                  category: cartItem.category, // Pass category
+                  imageUrl: cartItem.imageUrl,
                 ),
               )
               .toList();

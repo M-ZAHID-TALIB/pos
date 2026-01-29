@@ -5,6 +5,7 @@ class Product {
   final String name;
   final double price;
   final int quantity;
+  final String category; // Added category
   final String imageUrl;
 
   Product({
@@ -12,6 +13,7 @@ class Product {
     required this.name,
     required this.price,
     required this.quantity,
+    required this.category, // Added category
     required this.imageUrl,
   });
 
@@ -22,6 +24,7 @@ class Product {
       name: map['name'] ?? '',
       price: (map['price'] ?? 0).toDouble(),
       quantity: (map['quantity'] ?? 0),
+      category: map['category'] ?? 'General', // Added category
       imageUrl: map['imageUrl'] ?? '',
     );
   }
@@ -33,7 +36,26 @@ class Product {
       'name': name,
       'price': price,
       'quantity': quantity,
+      'category': category, // Added category
       'imageUrl': imageUrl,
     };
+  }
+
+  Product copyWith({
+    String? id,
+    String? name,
+    double? price,
+    int? quantity,
+    String? category, // Added category
+    String? imageUrl,
+  }) {
+    return Product(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      price: price ?? this.price,
+      quantity: quantity ?? this.quantity,
+      category: category ?? this.category, // Added category
+      imageUrl: imageUrl ?? this.imageUrl,
+    );
   }
 }

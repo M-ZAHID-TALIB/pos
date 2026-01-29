@@ -5,8 +5,8 @@ import 'package:uuid/uuid.dart';
 import 'package:myapp/models/product_model.dart';
 
 class ProductService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  FirebaseFirestore get _db => FirebaseFirestore.instance;
+  FirebaseStorage get _storage => FirebaseStorage.instance;
   final String _collection = 'products';
 
   Future<String> uploadImage(File imageFile) async {
@@ -47,8 +47,20 @@ class ProductService {
       return snapshot.docs.map((doc) => Product.fromMap(doc.data())).toList();
     });
   }
-}
 
-extension on Product {
-  copyWith({required String imageUrl}) {}
+  Future<void> deductStock(List<Map<String, dynamic>> items) async {
+    final batch = _db.batch();
+
+    for (final item in items) {
+      final String productId = item['id'];
+      final int quantitySold = item['quantity'];
+
+      final docRef = _db.collection(_collection).doc(productId);
+
+      // We use FieldValue.increment with a negative value for atomic updates
+      batch.update(docRef, {'quantity': FieldValue.increment(-quantitySold)});
+    }
+
+    await batch.commit();
+  }
 }
